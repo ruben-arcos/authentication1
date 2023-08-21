@@ -5,6 +5,8 @@ let argon2 = require("argon2"); // this is the pwd hash tool
 let jwt = require("jsonwebtoken");
 require("dotenv").config();
 
+// AUTHENTICATION: ARE YOU WHO YOU SAY YOU ARE WHEN YOU LOG IN
+
 /**
  * get the username, password, full_name from the body of the request
  * hash the password
@@ -30,6 +32,8 @@ let register = async (req, res) => {
 
   let passwordHash;
 
+  console.log(req.body)
+
   //password hash block
   try {
     passwordHash = await argon2.hash(password);
@@ -41,21 +45,31 @@ let register = async (req, res) => {
 
   let params = [username, passwordHash, fullName];
   let sql =
-    "insert into regUsers (Username, password_hash, full_name) values(?, ?, ?)";
+    `INSERT INTO regUsers (username, password_hash, full_name) VALUES(?, ?, ?)`;
 
-  try {
-    let results = await db.queryPromise(sql, params);
-    // since I don't need to see any results, I don't need to use querySync
-    res.sendStatus(200);
-  } catch (err) {
-    console.log(err);
-    if (err.code == "ER_DUP_ENTRY") {
-      res.status(400).send("Username already exists");
+  db.query(sql, params, (err, results) => {
+    if (err) {
+      console.log(err);
+      res.status(500).json({ error: err, msg: "Something went wrong." });
     } else {
-      res.sendStatus(500).send("Internal Server Error");
+      console.log(results);
+      res.json({ results, msgg: "User Created!" });
     }
-    return; // stops execution of any more code in this function
-  }
+  });
+
+  // try {
+  //   let results = await db.queryPromise(sql, params);
+  //   // since I don't need to see any results, I don't need to use querySync
+  //   res.sendStatus(200);
+  // } catch (err) {
+  //   console.log(err);
+  //   if (err.code == "ER_DUP_ENTRY") {
+  //     res.status(400).send("Username already exists");
+  //   } else {
+  //     res.sendStatus(500).send("Internal Server Error");
+  //   }
+  //   return; // stops execution of any more code in this function
+  // }
 };
 
 /**
@@ -106,7 +120,7 @@ let login = (req, res) => {
         try {
           goodPass = await argon2.verify(pwdHash, password); // return a boolean, so if it's good here, then goodPass = true
         } catch (err) {
-          console.log("Failed to verify password", err);
+          console.log("Failed to verify passwor", err);
           res.status(400).send("Invalid password");
         }
 
@@ -122,12 +136,11 @@ let login = (req, res) => {
           //  now we need to sign the token
           let signedToken = jwt.sign(token, process.env.JWT_SECRET);
 
-        //   show this just for testing
-        //   res.json(signedToken);
+          //   show this just for testing
+            res.json(signedToken);
 
-        // send in real life (production)
-          res.sendStatus(200);
-          
+          // send in real life (production)
+          // res.sendStatus(200);
         } else {
           res.sendStatus(400);
         }
